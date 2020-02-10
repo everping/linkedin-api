@@ -157,7 +157,8 @@ class Linkedin(object):
         if profile_languages:
             filters.append(f'profileLanguage->{"|".join(profile_languages)}')
         if nonprofit_interests:
-            filters.append(f'nonprofitInterest->{"|".join(nonprofit_interests)}')
+            filters.append(
+                f'nonprofitInterest->{"|".join(nonprofit_interests)}')
         if schools:
             filters.append(f'schools->{"|".join(schools)}')
         if title:
@@ -198,23 +199,46 @@ class Linkedin(object):
         if keywords:
             params["keywords"] = keywords
 
-        data = self.search(params, limit=limit)
+        # data = self.search(params, limit=limit)
 
-        results = []
-        for item in data:
-            if item.get("type") != "COMPANY":
-                continue
-            results.append(
-                {
-                    "urn": item.get("targetUrn"),
-                    "urn_id": get_id_from_urn(item.get("targetUrn")),
-                    "name": item.get("title", {}).get("text"),
-                    "headline": item.get("headline", {}).get("text"),
-                    "subline": item.get("subline", {}).get("text"),
-                }
-            )
+        # results = []
+        # for item in data:
+        #     if item.get("type") != "COMPANY":
+        #         continue
+        #     results.append(
+        #         {
+        #             "urn": item.get("targetUrn"),
+        #             "urn_id": get_id_from_urn(item.get("targetUrn")),
+        #             "name": item.get("title", {}).get("text"),
+        #             "headline": item.get("headline", {}).get("text"),
+        #             "subline": item.get("subline", {}).get("text"),
+        #         }
+        #     )
+
+        response = self._fetch(
+            '/typeahead/hitsV2?keywords={}&origin=GLOBAL_SEARCH_HEADER&q=blended'.format(keywords))
+        
+        data = response.json().get('elements', [])
+
+        companies = filter(lambda x: x['type'] == 'COMPANY', data)
+        results = map(lambda x: self.format_company(x), companies)
 
         return results
+
+    def format_company(self, data):
+        company = dict()
+        urn = data.get('targetUrn') if data.get('targetUrn') else data.get('objectUrn')
+        if not urn: 
+            return {}
+
+        logo_root = data['image']['attributes'][0]['miniCompany']['logo']['com.linkedin.common.VectorImage']
+        company['id'] = urn.split(':')[-1]
+        company['name'] = data['text']['text']
+        company['subtext'] = data['subtext']['text']
+        company['logo'] = logo_root['rootUrl'] + logo_root['artifacts'][0]['fileIdentifyingUrlPathSegment']
+        
+        return company
+
 
     def get_profile_contact_info(self, public_id=None, urn_id=None):
         """
@@ -282,7 +306,8 @@ class Linkedin(object):
         """
         # NOTE this still works for now, but will probably eventually have to be converted to
         # https://www.linkedin.com/voyager/api/identity/profiles/ACoAAAKT9JQBsH7LwKaE9Myay9WcX8OVGuDq9Uw
-        res = self._fetch(f"/identity/profiles/{public_id or urn_id}/profileView")
+        res = self._fetch(
+            f"/identity/profiles/{public_id or urn_id}/profileView")
 
         data = res.json()
         if data and "status" in data and data["status"] != 200:
@@ -296,7 +321,8 @@ class Linkedin(object):
                 profile["displayPictureUrl"] = profile["miniProfile"]["picture"][
                     "com.linkedin.common.VectorImage"
                 ]["rootUrl"]
-            profile["profile_id"] = get_id_from_urn(profile["miniProfile"]["entityUrn"])
+            profile["profile_id"] = get_id_from_urn(
+                profile["miniProfile"]["entityUrn"])
 
             del profile["miniProfile"]
 
@@ -323,7 +349,8 @@ class Linkedin(object):
         # skills = [item["name"] for item in data["skillView"]["elements"]]
         # profile["skills"] = skills
 
-        profile["skills"] = self.get_profile_skills(public_id=public_id, urn_id=urn_id)
+        profile["skills"] = self.get_profile_skills(
+            public_id=public_id, urn_id=urn_id)
 
         # massage [education] data
         education = data["educationView"]["elements"]
@@ -517,7 +544,8 @@ class Linkedin(object):
         """
         Return the full conversation at a given [conversation_urn_id]
         """
-        res = self._fetch(f"/messaging/conversations/{conversation_urn_id}/events")
+        res = self._fetch(
+            f"/messaging/conversations/{conversation_urn_id}/events")
 
         return res.json()
 
