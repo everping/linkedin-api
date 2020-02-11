@@ -217,28 +217,50 @@ class Linkedin(object):
 
         response = self._fetch(
             '/typeahead/hitsV2?keywords={}&origin=GLOBAL_SEARCH_HEADER&q=blended'.format(keywords))
-        
-        data = response.json().get('elements', [])
 
-        companies = filter(lambda x: x['type'] == 'COMPANY', data)
-        results = map(lambda x: self.format_company(x), companies)
+        data = response.json()
+        logo_dict = self.map_logos(data.get('included', []))
+
+        companies = filter(lambda x: x['type'] ==
+                           'COMPANY', data.get('elements', []))
+        results = map(lambda x: self.format_company(x, logo_dict), companies)
 
         return results
 
-    def format_company(self, data):
-        company = dict()
-        urn = data.get('targetUrn') if data.get('targetUrn') else data.get('objectUrn')
-        if not urn: 
-            return {}
+    def map_logos(self, data):
+        result = dict()
+        for item in data:
+            try:
+                id = item['objectUrn'].split(':')[-1]
+                logo = item['logo']['rootUrl'] + \
+                    item['logo']['artifacts'][0]['fileIdentifyingUrlPathSegment']
+                result.update({ id : logo})
+            except:
+                pass
+        return result
 
-        logo_root = data['image']['attributes'][0]['miniCompany']['logo']['com.linkedin.common.VectorImage']
+    def format_company(self, data, logo_dict):
+        company = dict()
+        urn = data.get('targetUrn') if data.get(
+            'targetUrn') else data.get('objectUrn')
+        if not urn:
+            return {}
+        
         company['id'] = urn.split(':')[-1]
-        company['name'] = data['text']['text']
-        company['subtext'] = data['subtext']['text']
-        company['logo'] = logo_root['rootUrl'] + logo_root['artifacts'][0]['fileIdentifyingUrlPathSegment']
+        company['name'] = data.get('text', {}).get('text')
+        company['subtext'] = data.get('subtext', {}).get('text')
+
+        try:
+            logo_root = data['image']['attributes'][0]['miniCompany']['logo']['com.linkedin.common.VectorImage']
+            company['logo'] = logo_root['rootUrl'] + \
+                logo_root['artifacts'][0]['fileIdentifyingUrlPathSegment']
+        except:
+            try:
+                company['logo'] = logo_dict[company['id']]
+            except:
+                company['logo'] = None
         
         return company
-
 
     def get_profile_contact_info(self, public_id=None, urn_id=None):
         """
