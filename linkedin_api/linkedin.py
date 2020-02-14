@@ -56,7 +56,6 @@ class Linkedin(object):
         """
         GET request to Linkedin API
         """
-        evade()
 
         url = f"{self.client.API_BASE_URL}{uri}"
         return self.client.session.get(url, **kwargs)
