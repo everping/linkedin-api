@@ -216,9 +216,10 @@ class Linkedin(object):
 
         response = self._fetch(
             '/typeahead/hitsV2?keywords={}&origin=GLOBAL_SEARCH_HEADER&q=blended'.format(keywords))
-
         data = response.json()
-        logo_dict = self.map_logos(data.get('included', []))
+        
+        included = data.get('included', [])
+        logo_dict = self.map_logos(included)
 
         companies = filter(lambda x: x['type'] ==
                            'COMPANY', data.get('elements', []))
@@ -248,6 +249,10 @@ class Linkedin(object):
         company['id'] = urn.split(':')[-1]
         company['name'] = data.get('text', {}).get('text')
         company['subtext'] = data.get('subtext', {}).get('text')
+        try:
+            company['universal_name'] = data['image']['attributes'][0]['miniCompany']['universalName']
+        except:
+            company['universal_name'] = None
 
         try:
             logo_root = data['image']['attributes'][0]['miniCompany']['logo']['com.linkedin.common.VectorImage']
