@@ -43,6 +43,8 @@ class Linkedin(object):
         debug=False,
         proxies={},
     ):
+        self.username = username
+        self.password = password
         self.client = Client(
             refresh_cookies=refresh_cookies, debug=debug, proxies=proxies
         )
@@ -184,43 +186,25 @@ class Linkedin(object):
 
         return results
 
-    def search_companies(self, keywords=None, limit=None):
+    def search_companies(self, keywords=None, limit=None, attempts=0):
         """
         Do a company search.
         """
-        filters = ["resultType->COMPANIES"]
-
-        params = {
-            "filters": "List({})".format(",".join(filters)),
-            "queryContext": "List(spellCorrectionEnabled->true)",
-        }
-
-        if keywords:
-            params["keywords"] = keywords
-
-        # data = self.search(params, limit=limit)
-
-        # results = []
-        # for item in data:
-        #     if item.get("type") != "COMPANY":
-        #         continue
-        #     results.append(
-        #         {
-        #             "urn": item.get("targetUrn"),
-        #             "urn_id": get_id_from_urn(item.get("targetUrn")),
-        #             "name": item.get("title", {}).get("text"),
-        #             "headline": item.get("headline", {}).get("text"),
-        #             "subline": item.get("subline", {}).get("text"),
-        #         }
-        #     )
-
+        attempts = 0
         response = self._fetch(
             '/typeahead/hitsV2?keywords={}&origin=GLOBAL_SEARCH_HEADER&q=blended'.format(keywords))
-        
-        if(response.status_code != 200):
-            raise Exception()
-
+        if response.status_code == 404:
+            return []
+        if response.status_code != 200:
+            if attempts < 2:
+                self.client = Client(refresh_cookies=True)
+                self.client.authenticate(self.username, self.password)
+                attempts += 1
+                return self.search_companies(keywords=keywords, limit=limit, attempts=attempts)
+            else:
+                raise ValueError('Error when searching linked in, code: {}'.format(response.status_code))
         data = response.json()
+        
         included = data.get('included', [])
         logo_dict = self.map_logos(included)
 
@@ -517,7 +501,7 @@ class Linkedin(object):
 
         return school
 
-    def get_company(self, public_id):
+    def get_company(self, public_id, attempts=0):
         """
         Return data for a single company.
 
@@ -530,16 +514,19 @@ class Linkedin(object):
         }
 
         res = self._fetch(f"/organization/companies", params=params)
-
-
-        if(res.status_code != 200):
-            raise Exception()
-        data = res.json()
-
-        if data and "status" in data and data["status"] != 200:
-            self.logger.info("request failed: {}".format(data["message"]))
+        if res.status_code == 404:
             return {}
+        
+        if res.status_code != 200:
+            if attempts < 2:
+                self.client = Client(refresh_cookies=True)
+                self.client.authenticate(self.username, self.password)
+                attempts = attempts + 1
+                return self.get_company(public_id, attempts=attempts)
+            else:
+                raise ValueError('Error from linkedin, code: {}'.format(res.status_code))
 
+        data = res.json()
         company = data["elements"][0]
 
         return company
