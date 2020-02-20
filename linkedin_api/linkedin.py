@@ -216,8 +216,11 @@ class Linkedin(object):
 
         response = self._fetch(
             '/typeahead/hitsV2?keywords={}&origin=GLOBAL_SEARCH_HEADER&q=blended'.format(keywords))
-        data = response.json()
         
+        if(response.status_code != 200):
+            raise Exception()
+
+        data = response.json()
         included = data.get('included', [])
         logo_dict = self.map_logos(included)
 
@@ -528,6 +531,9 @@ class Linkedin(object):
 
         res = self._fetch(f"/organization/companies", params=params)
 
+
+        if(res.status_code != 200):
+            raise Exception()
         data = res.json()
 
         if data and "status" in data and data["status"] != 200:
