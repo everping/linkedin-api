@@ -528,6 +528,7 @@ class Linkedin(object):
 
         data = res.json()
         company = data["elements"][0]
+        company['id'] = get_id_from_urn(company['entityUrn'])
 
         return company
 
