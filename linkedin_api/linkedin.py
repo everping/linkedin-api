@@ -45,7 +45,8 @@ class Linkedin(object):
     ):
         self.username = username
         self.password = password
-        self.set_client(refresh_cookies=refresh_cookies, authenticate=authenticate)
+        self.set_client(refresh_cookies=refresh_cookies,
+                        authenticate=authenticate)
 
     def set_client(self, refresh_cookies=True, authenticate=True, debug=False, proxies={}):
         self.client = Client(
@@ -204,9 +205,10 @@ class Linkedin(object):
                 attempts += 1
                 return self.search_companies(keywords=keywords, limit=limit, attempts=attempts)
             else:
-                raise ValueError('Error when searching linked in, code: {}'.format(response.status_code))
+                raise ValueError(
+                    'Error when searching linked in, code: {}'.format(response.status_code))
         data = response.json()
-        
+
         included = data.get('included', [])
         logo_dict = self.map_logos(included)
 
@@ -223,7 +225,11 @@ class Linkedin(object):
                 id = item['objectUrn'].split(':')[-1]
                 logo = item['logo']['rootUrl'] + \
                     item['logo']['artifacts'][0]['fileIdentifyingUrlPathSegment']
-                result.update({ id : logo})
+                universal_name = item.get('universalName')
+                result.update({id: {
+                    logo: logo,
+                    universal_name: universal_name
+                }})
             except:
                 pass
         return result
@@ -234,14 +240,14 @@ class Linkedin(object):
             'targetUrn') else data.get('objectUrn')
         if not urn:
             return {}
-        
+
         company['id'] = urn.split(':')[-1]
         company['name'] = data.get('text', {}).get('text')
         company['subtext'] = data.get('subtext', {}).get('text')
         try:
             company['universal_name'] = data['image']['attributes'][0]['miniCompany']['universalName']
         except:
-            company['universal_name'] = None
+            company['universal_name'] = logo_dict[company['id']['universal_name']]
 
         try:
             logo_root = data['image']['attributes'][0]['miniCompany']['logo']['com.linkedin.common.VectorImage']
@@ -249,10 +255,10 @@ class Linkedin(object):
                 logo_root['artifacts'][0]['fileIdentifyingUrlPathSegment']
         except:
             try:
-                company['logo'] = logo_dict[company['id']]
+                company['logo'] = logo_dict[company['id']['logo']]
             except:
                 company['logo'] = None
-        
+
         return company
 
     def get_profile_contact_info(self, public_id=None, urn_id=None):
@@ -518,14 +524,15 @@ class Linkedin(object):
         res = self._fetch(f"/organization/companies", params=params)
         if res.status_code == 404:
             return {}
-        
+
         if res.status_code != 200:
             if attempts < 2:
                 self.set_client()
                 attempts = attempts + 1
                 return self.get_company(public_id, attempts=attempts)
             else:
-                raise ValueError('Error from linkedin, code: {}'.format(res.status_code))
+                raise ValueError(
+                    'Error from linkedin, code: {}'.format(res.status_code))
 
         data = res.json()
         company = data["elements"][0]
