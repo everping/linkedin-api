@@ -40,11 +40,14 @@ class Linkedin(object):
         *,
         authenticate=True,
         refresh_cookies=False,
-        debug=False,
+        debug=True,
         proxies={},
     ):
         self.username = username
         self.password = password
+        self.set_client(refresh_cookies=refresh_cookies, authenticate=authenticate)
+
+    def set_client(self, refresh_cookies=True, authenticate=True, debug=True, proxies={}):
         self.client = Client(
             refresh_cookies=refresh_cookies, debug=debug, proxies=proxies
         )
@@ -52,7 +55,7 @@ class Linkedin(object):
         self.logger = logger
 
         if authenticate:
-            self.client.authenticate(username, password)
+            self.client.authenticate(self.username, self.password)
 
     def _fetch(self, uri, evade=default_evade, **kwargs):
         """
@@ -197,8 +200,7 @@ class Linkedin(object):
             return []
         if response.status_code != 200:
             if attempts < 2:
-                self.client = Client(refresh_cookies=True)
-                self.client.authenticate(self.username, self.password)
+                self.set_client()
                 attempts += 1
                 return self.search_companies(keywords=keywords, limit=limit, attempts=attempts)
             else:
@@ -519,8 +521,7 @@ class Linkedin(object):
         
         if res.status_code != 200:
             if attempts < 2:
-                self.client = Client(refresh_cookies=True)
-                self.client.authenticate(self.username, self.password)
+                self.set_client()
                 attempts = attempts + 1
                 return self.get_company(public_id, attempts=attempts)
             else:
