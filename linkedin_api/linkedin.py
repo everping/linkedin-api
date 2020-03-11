@@ -40,14 +40,14 @@ class Linkedin(object):
         *,
         authenticate=True,
         refresh_cookies=False,
-        debug=True,
+        debug=False,
         proxies={},
     ):
         self.username = username
         self.password = password
         self.set_client(refresh_cookies=refresh_cookies, authenticate=authenticate)
 
-    def set_client(self, refresh_cookies=True, authenticate=True, debug=True, proxies={}):
+    def set_client(self, refresh_cookies=True, authenticate=True, debug=False, proxies={}):
         self.client = Client(
             refresh_cookies=refresh_cookies, debug=debug, proxies=proxies
         )
