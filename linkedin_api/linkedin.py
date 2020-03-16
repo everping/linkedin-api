@@ -248,9 +248,9 @@ class Linkedin(object):
             company['universal_name'] = data['image']['attributes'][0]['miniCompany']['universalName']
         except:
             try:
-                company['universal_name'] = logo_dict[company['id']]['universal_name']
-            except:
                 company['universal_name'] = logo_dict[company['id']].get('universal_name')
+            except:
+                company['universal_name'] = None
         try:
             logo_root = data['image']['attributes'][0]['miniCompany']['logo']['com.linkedin.common.VectorImage']
             company['logo'] = logo_root['rootUrl'] + \
